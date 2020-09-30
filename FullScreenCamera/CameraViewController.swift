@@ -20,7 +20,7 @@ class CameraViewController: UIViewController {
     // - AVCaptureDevice DiscoverySession
     
     let captureSession = AVCaptureSession()
-    var videoDeviceInpt: AVCaptureDeviceInput!
+    var videoDeviceInput: AVCaptureDeviceInput!
     let photoOutput = AVCapturePhotoOutput()
     
     let sessionQueue = DispatchQueue(label: "session Queue")
@@ -65,9 +65,49 @@ class CameraViewController: UIViewController {
     
     @IBAction func switchCamera(sender: Any) {
         // TODO: 카메라는 1개 이상이어야함
-        
+        guard videoDeviceDiscoverySession.devices.count > 1 else { return }
         
         // TODO: 반대 카메라 찾아서 재설정
+        // - 반대 카메라 찾기
+        // - 새로운 디바이스를 가지고 세션 업데이트
+        // - 카메라 토글 버튼 업데이트
+        
+        sessionQueue.async {
+            // 현재 카메라 가져와서 위치 찾기
+            let currentVideoDevice = self.videoDeviceInput.device
+            let currentPosition = currentVideoDevice.position
+            let isFront = currentPosition == .front
+            let preferredPosition: AVCaptureDevice.Position = isFront ? .back : .front
+            
+            // 새로운 위치(방향)의 카메라를 찾기
+            let devices = self.videoDeviceDiscoverySession.devices
+            var newVideoDevice: AVCaptureDevice?
+            
+            newVideoDevice = devices.first(where: { device in
+                return preferredPosition == device.position
+            })
+            
+            // update capture session
+            if let newDevice = newVideoDevice {
+                do {
+                    let videoDeviceInput = try AVCaptureDeviceInput(device: newDevice)
+                    self.captureSession.beginConfiguration()
+                    self.captureSession.removeInput(self.videoDeviceInput)
+                    
+                    // add new device input
+                    if self.captureSession.canAddInput(videoDeviceInput) {
+                        self.captureSession.addInput(videoDeviceInput)
+                    } else {
+                        self.captureSession.addInput(self.videoDeviceInput)
+                    }
+                    
+                    self.captureSession.commitConfiguration()
+                } catch {
+                    
+                }
+                
+            }
+        }
         
     }
     
